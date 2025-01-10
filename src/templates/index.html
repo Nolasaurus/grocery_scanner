@@ -3,13 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flask OpenCV App</title>
+    <title>Camera Capture</title>
 </head>
 <body>
-    <h1>Upload an Image</h1>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
-        <button type="submit">Upload and Process</button>
-    </form>
+    <h1>Camera Capture with Flask and OpenCV</h1>
+
+    <!-- Video preview -->
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <!-- Buttons -->
+    <button id="capture">Capture</button>
+    <button id="process" style="display: none;">Process</button>
+
+    <!-- Display processed image -->
+    <img id="processedImage" style="display: none;" alt="Processed Image">
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('capture');
+        const processButton = document.getElementById('process');
+        const processedImage = document.getElementById('processedImage');
+
+        // Access the device camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing the camera: ", err);
+            });
+
+        // Capture the current frame
+        captureButton.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            processButton.style.display = 'block';
+        });
+
+        // Send the captured frame to the server
+        processButton.addEventListener('click', () => {
+            const imageData = canvas.toDataURL('image/jpeg');
+            
+            fetch('/process_image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.processed_image) {
+                    processedImage.src = data.processed_image;
+                    processedImage.style.display = 'block';
+                } else {
+                    console.error("Processing failed: ", data.error);
+                }
+            })
+            .catch(err => console.error("Error sending image: ", err));
+        });
+    </script>
 </body>
 </html>
