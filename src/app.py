@@ -30,10 +30,11 @@ class VideoCamera(object):
 
 
 video_stream = VideoCamera()
+last_capture = None
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', last_capture=last_capture)
 
 def gen(camera):
     while True:
@@ -48,6 +49,7 @@ def gen(camera):
 def video_feed():
     return Response(gen(video_stream),
                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 @app.route('/capture')
 def capture():
     global video_stream, last_capture
