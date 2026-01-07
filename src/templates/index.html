@@ -1,74 +1,210 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Feed</title>
+    <title>Grocery Scanner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1200px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
             text-align: center;
         }
-        .container {
-            display: flex;
-            justify-content: space-around;
-            margin: 20px 0;
-        }
-        .feed-container {
-            flex: 1;
-            margin: 0 10px;
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            border: 2px solid #ccc;
+        #video {
+            width: 100%;
+            max-width: 640px;
+            border: 2px solid #333;
             border-radius: 8px;
-            margin-bottom: 10px;
         }
-        .capture-btn {
-            padding: 10px 20px;
+        #canvas {
+            display: none;
+        }
+        button {
+            margin: 10px;
+            padding: 15px 30px;
             font-size: 16px;
+            cursor: pointer;
             background-color: #4CAF50;
             color: white;
             border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-            margin-top: 10px;
+            border-radius: 5px;
         }
-        .capture-btn:hover {
+        button:hover {
             background-color: #45a049;
         }
-        #captured-image {
-            min-height: 480px;
-            background-color: #f0f0f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .gallery img {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            min-height: 20px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
         }
     </style>
 </head>
 <body>
-    <h1>Camera Feed and Capture</h1>
-    <div class="container">
-        <div class="feed-container">
-            <h2>Live Feed</h2>
-            <img src="{{ url_for('video_feed') }}" alt="Camera feed">
-            <br>
-            <a href="{{ url_for('capture') }}" class="capture-btn">Capture Frame</a>
-        </div>
-        <div class="feed-container">
-            <h2>Last Captured Image</h2>
-            {% if last_capture %}
-                <img src="{{ url_for('static', filename=last_capture) }}" alt="Last captured frame">
-            {% else %}
-                <div id="captured-image">No image captured yet</div>
-            {% endif %}
-        </div>
+    <h1>📷 Grocery Scanner</h1>
+    
+    <div id="status"></div>
+    
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    
+    <div>
+        <button id="startButton">Start Camera</button>
+        <button id="captureButton" disabled>Capture Photo</button>
     </div>
+    
+    <h2>Captured Photos</h2>
+    <div class="gallery" id="gallery">
+        {% for capture in captures %}
+        <img src="{{ url_for('static', filename='captures/' + capture) }}" alt="Capture">
+        {% endfor %}
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startButton = document.getElementById('startButton');
+        const captureButton = document.getElementById('captureButton');
+        const status = document.getElementById('status');
+        const gallery = document.getElementById('gallery');
+        let stream = null;
+
+        function showStatus(message, type = 'success') {
+            status.textContent = message;
+            status.className = type;
+            if (type !== 'info') {
+                setTimeout(() => {
+                    status.textContent = '';
+                    status.className = '';
+                }, 3000);
+            }
+        }
+
+        // Check if we're on HTTPS or localhost
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            showStatus('⚠️ Camera requires HTTPS. Use https://' + location.hostname + ':5000', 'error');
+        }
+
+        startButton.addEventListener('click', async () => {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera API not supported. Must use HTTPS or localhost.');
+                }
+
+                // Request camera access
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment', // Use back camera on mobile
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                startButton.disabled = true;
+                captureButton.disabled = false;
+                showStatus('Camera started successfully!');
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                showStatus('Error: ' + err.message, 'error');
+            }
+        });
+
+        captureButton.addEventListener('click', async () => {
+            try {
+                captureButton.disabled = true;
+                showStatus('Capturing...', 'info');
+                
+                // Set canvas size to match video
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                // Draw video frame to canvas
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0);
+                
+                // Convert canvas to blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                
+                // Convert blob to base64
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64data = reader.result;
+                    
+                    // Send to server
+                    try {
+                        const response = await fetch('/capture', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ image: base64data })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            showStatus('Photo captured successfully!');
+                            
+                            // Add new image to gallery without page reload
+                            const newImg = document.createElement('img');
+                            newImg.src = '/static/captures/' + result.filename;
+                            newImg.alt = 'Capture';
+                            gallery.insertBefore(newImg, gallery.firstChild);
+                            
+                            captureButton.disabled = false;
+                        } else {
+                            showStatus('Error: ' + result.error, 'error');
+                            captureButton.disabled = false;
+                        }
+                    } catch (err) {
+                        console.error('Error uploading photo:', err);
+                        showStatus('Error uploading: ' + err.message, 'error');
+                        captureButton.disabled = false;
+                    }
+                };
+                reader.readAsDataURL(blob);
+            } catch (err) {
+                console.error('Error capturing:', err);
+                showStatus('Error: ' + err.message, 'error');
+                captureButton.disabled = false;
+            }
+        });
+
+        // Check camera support on load
+        window.addEventListener('load', () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showStatus('⚠️ Camera not supported. Use HTTPS or localhost.', 'error');
+            }
+        });
+    </script>
 </body>
 </html>

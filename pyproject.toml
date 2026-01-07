@@ -6,10 +6,14 @@ authors = [
     {name = "Nolan Meyer",email = "meyer09@gmail.com"}
 ]
 readme = "README.md"
+dependencies = [
+    "pillow>=12.1.0",
+]
 [tool.poetry.dependencies]
 python = "^3.10"
 flask = "^2.2.2"
 opencv-python = "^4.8.0"
+matplotlib = "^3.10"
 
 [[tool.poetry.packages]]
 include = "src"
