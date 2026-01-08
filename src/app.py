@@ -3,7 +3,8 @@ import os
 import base64
 from datetime import datetime
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageOps
+import requests
 import logging
 import sys
 
@@ -68,18 +69,18 @@ def capture():
         
         logger.info(f"Saving image to: {filepath}")
         image.save(filepath)
-        
+
         # Verify the file was created
         if os.path.exists(filepath):
             file_size = os.path.getsize(filepath)
-            logger.info(f"✅ File saved successfully: {filepath} ({file_size} bytes)")
+            logger.info(f"File saved successfully: {filepath} ({file_size} bytes)")
             return jsonify({'success': True, 'filename': filename})
         else:
-            logger.error(f"❌ File was not created: {filepath}")
+            logger.error(f"File was not created: {filepath}")
             return jsonify({'success': False, 'error': 'File was not created'}), 500
             
     except Exception as e:
-        logger.error(f"❌ Error capturing: {e}", exc_info=True)
+        logger.error(f"Error capturing: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
