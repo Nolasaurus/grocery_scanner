@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 import os
 import base64
 from datetime import datetime
@@ -51,6 +51,20 @@ def index():
     
     return render_template('index.html', captures=captures)
 
+
+@app.route('/image/<filename>')
+def serve_image(filename):
+    """Serve images from the persistent volume"""
+    try:
+        filepath = os.path.join(CAPTURES_DIR, filename)
+        if os.path.exists(filepath):
+            return send_file(filepath, mimetype='image/jpeg')
+        else:
+            return jsonify({'error': 'Image not found'}), 404
+    except Exception as e:
+        logger.error(f"Error serving image: {e}")
+        return jsonify({'error': str(e)}), 500
+    
 @app.route('/capture', methods=['POST'])
 def capture():
     logger.debug("Capture route accessed")
