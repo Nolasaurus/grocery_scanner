@@ -4,7 +4,6 @@ import base64
 from datetime import datetime
 from io import BytesIO
 from PIL import Image, ImageOps
-import requests
 import logging
 import sys
 
