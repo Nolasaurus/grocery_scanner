@@ -22,9 +22,16 @@ logger.info(f"Base directory: {BASE_DIR}")
 
 app = Flask(__name__)
 
-# Use absolute path for captures directory
-CAPTURES_DIR = os.path.join(BASE_DIR, 'static', 'captures')
-logger.info(f"Captures directory: {CAPTURES_DIR}")
+# Use Railway persistent volume if available, otherwise use local storage
+# Railway volumes are typically mounted at /data
+RAILWAY_VOLUME_PATH = os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '/data')
+if os.path.exists(RAILWAY_VOLUME_PATH):
+    CAPTURES_DIR = os.path.join(RAILWAY_VOLUME_PATH, 'captures')
+    logger.info(f"Using Railway persistent volume: {CAPTURES_DIR}")
+else:
+    # Fallback to local storage for development
+    CAPTURES_DIR = os.path.join(BASE_DIR, 'static', 'captures')
+    logger.info(f"Railway volume not found, using local storage: {CAPTURES_DIR}")
 
 # Create captures directory if it doesn't exist
 if not os.path.exists(CAPTURES_DIR):
@@ -32,6 +39,7 @@ if not os.path.exists(CAPTURES_DIR):
     logger.info(f"Created captures directory at: {CAPTURES_DIR}")
 else:
     logger.info(f"Captures directory already exists: {CAPTURES_DIR}")
+    
 
 @app.route('/')
 def index():
@@ -69,6 +77,16 @@ def capture():
         
         logger.info(f"Saving image to: {filepath}")
         image.save(filepath)
+
+        original_size = image.size
+        resized_image = ImageOps.contain(image, (1024, 1024), method=Image.Resampling.LANCZOS)
+        logger.info(f"Resized from {original_size[0]}x{original_size[1]} to {resized_image.size[0]}x{resized_image.size[1]}")
+
+        resized_filename = f'resized_capture_{timestamp}.jpg'
+        resized_filepath = os.path.join(CAPTURES_DIR, resized_filename)
+
+        logger.info(f"Saving resized image to: {filepath}")
+        resized_image.save(resized_filepath, 'JPEG', quality=85, optimize=True)
 
         # Verify the file was created
         if os.path.exists(filepath):
