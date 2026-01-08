@@ -84,7 +84,7 @@
     <h2>Captured Photos</h2>
     <div class="gallery" id="gallery">
         {% for capture in captures %}
-        <img src="{{ url_for('static', filename='captures/' + capture) }}" alt="Capture">
+        <img src="/image/{{ capture }}" alt="Capture">
         {% endfor %}
     </div>
 
@@ -176,7 +176,7 @@
                             
                             // Add new image to gallery without page reload
                             const newImg = document.createElement('img');
-                            newImg.src = '/static/captures/' + result.filename;
+                            newImg.src = '/image/' + result.filename;
                             newImg.alt = 'Capture';
                             gallery.insertBefore(newImg, gallery.firstChild);
                             
