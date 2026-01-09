@@ -20,4 +20,5 @@ COPY . .
 EXPOSE 8080
 
 # Start command
-CMD sh -c "exec gunicorn --bind 0.0.0.0:${PORT} src.app:app --workers 2 --timeout 120"
+CMD sh -c "echo 'PORT='${PORT}; env | grep -E '^(PORT)=|^(RAILWAY)=' || true; exec gunicorn --bind 0.0.0.0:${PORT:-8080} src.app:app --workers 2 --timeout 120"
+
