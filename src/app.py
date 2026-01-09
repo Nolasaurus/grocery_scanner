@@ -8,6 +8,13 @@ import logging
 import sys
 import json
 
+try:
+    from pyzbar.pyzbar import decode as decode_barcode
+    BARCODE_AVAILABLE = True
+except ImportError:
+    BARCODE_AVAILABLE = False
+    logging.warning("pyzbar not available - barcode scanning disabled")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -39,6 +46,42 @@ else:
     logger.info(f"Products directory already exists: {PRODUCTS_DIR}")
 
 
+def read_barcode(image):
+    """Read barcode from image"""
+    if not BARCODE_AVAILABLE:
+        logger.warning("Barcode reading not available (pyzbar not installed)")
+        return None
+    
+    try:
+        # Decode barcodes from image
+        barcodes = decode_barcode(image)
+        
+        if barcodes:
+            # Return the first barcode found
+            barcode = barcodes[0]
+            barcode_data = barcode.data.decode('utf-8')
+            barcode_type = barcode.type
+            
+            logger.info(f"Barcode detected: {barcode_data} (type: {barcode_type})")
+            return {
+                'data': barcode_data,
+                'type': barcode_type,
+                'rect': {
+                    'left': barcode.rect.left,
+                    'top': barcode.rect.top,
+                    'width': barcode.rect.width,
+                    'height': barcode.rect.height
+                }
+            }
+        else:
+            logger.warning("No barcode detected in image")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error reading barcode: {e}")
+        return None
+
+
 def resize_image(image, max_dimension=1024):
     """Resize image maintaining aspect ratio"""
     original_size = image.size
@@ -55,6 +98,11 @@ def save_image(image_base64, product_id, image_type):
         image_bytes = base64.b64decode(image_data)
         image = Image.open(BytesIO(image_bytes))
         
+        # If this is a barcode image, try to read it
+        barcode_info = None
+        if image_type == 'barcode':
+            barcode_info = read_barcode(image)
+        
         # Resize
         resized_image = resize_image(image, max_dimension=1024)
         
@@ -68,10 +116,10 @@ def save_image(image_base64, product_id, image_type):
         resized_image.save(filepath, 'JPEG', quality=85, optimize=True)
         logger.info(f"Saved {image_type} to: {filepath}")
         
-        return True
+        return barcode_info
     except Exception as e:
         logger.error(f"Error saving {image_type}: {e}")
-        return False
+        return None
 
 
 @app.route('/')
@@ -91,7 +139,9 @@ def index():
                         metadata = json.load(f)
                         products.append({
                             'id': product_id,
-                            'timestamp': metadata.get('timestamp'),
+                            'timestamp': metadata.get('created_at'),
+                            'barcode': metadata.get('barcode_data'),
+                            'barcode_type': metadata.get('barcode_type'),
                             'barcode_url': f'/image/{product_id}/barcode',
                             'nutrition_url': f'/image/{product_id}/nutrition',
                             'label_url': f'/image/{product_id}/label'
@@ -132,17 +182,19 @@ def submit_product():
         # Generate product ID
         product_id = f"product_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # Save all three images
-        barcode_saved = save_image(data['barcode'], product_id, 'barcode')
+        # Save all three images (barcode returns barcode info)
+        barcode_info = save_image(data['barcode'], product_id, 'barcode')
         nutrition_saved = save_image(data['nutrition'], product_id, 'nutrition')
         label_saved = save_image(data['label'], product_id, 'label')
         
-        if barcode_saved and nutrition_saved and label_saved:
+        if nutrition_saved is not None and label_saved is not None:
             # Save metadata
             metadata = {
                 'product_id': product_id,
                 'timestamp': datetime.now().isoformat(),
-                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                'created_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'barcode_data': barcode_info['data'] if barcode_info else None,
+                'barcode_type': barcode_info['type'] if barcode_info else None
             }
             
             metadata_file = os.path.join(PRODUCTS_DIR, product_id, 'metadata.json')
@@ -150,7 +202,13 @@ def submit_product():
                 json.dump(metadata, f, indent=2)
             
             logger.info(f"Product submitted successfully: {product_id}")
-            return jsonify({'success': True, 'product_id': product_id})
+            
+            return jsonify({
+                'success': True, 
+                'product_id': product_id,
+                'barcode': barcode_info['data'] if barcode_info else None,
+                'barcode_type': barcode_info['type'] if barcode_info else None
+            })
         else:
             logger.error(f"Failed to save all images for product: {product_id}")
             return jsonify({'success': False, 'error': 'Failed to save images'}), 500
