@@ -16,9 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Expose port
-EXPOSE 8080
-
 # Start command
 CMD sh -c "exec gunicorn --bind 0.0.0.0:3000 src.app:app --workers 2 --timeout 120"
 
