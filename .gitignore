@@ -1,16 +1,14 @@
 src/static/
+# Allow static assets
+!src/static/js/
+!src/static/css/
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
 .venv/
-ENV/
 *.log
 .DS_Store
-cert.pem
-key.pem
 .uv/
 uv.lock
