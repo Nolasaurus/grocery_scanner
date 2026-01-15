@@ -116,10 +116,10 @@ def save_image(image_base64, product_id, image_type):
         resized_image.save(filepath, 'JPEG', quality=85, optimize=True)
         logger.info(f"Saved {image_type} to: {filepath}")
         
-        return barcode_info
+        return barcode_info if image_type == 'barcode' else True
     except Exception as e:
         logger.error(f"Error saving {image_type}: {e}")
-        return None
+        return False
 
 
 @app.route('/')
@@ -183,7 +183,7 @@ def submit_product():
         product_id = f"product_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
         # Save all three images (barcode returns barcode info)
-        barcode_info = save_image(data['barcode'], product_id, 'barcode')
+        barcode_result = save_image(data['barcode'], product_id, 'barcode')
         nutrition_saved = save_image(data['nutrition'], product_id, 'nutrition')
         label_saved = save_image(data['label'], product_id, 'label')
         
@@ -196,8 +196,12 @@ def submit_product():
                 'type': 'MANUAL',
                 'rect': None
             }
+        else:
+            # Use barcode_result if it's a dict, otherwise None
+            barcode_info = barcode_result if isinstance(barcode_result, dict) else None
         
-        if nutrition_saved is not None and label_saved is not None:
+        # Check if all images were saved successfully
+        if nutrition_saved and label_saved:
             # Save metadata
             metadata = {
                 'product_id': product_id,
