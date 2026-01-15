@@ -1,7 +1,4 @@
-src/static/
-# Allow static assets
-!src/static/js/
-!src/static/css/
+src/data/
 __pycache__/
 *.py[cod]
 *$py.class
