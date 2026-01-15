@@ -159,6 +159,7 @@
         <div class="video-container">
             <video id="video" autoplay playsinline></video>
             <canvas id="overlay"></canvas>
+            <img id="freezeFrame" style="display:none; width:100%; border-radius:10px;" />
         </div>
         <canvas id="canvas"></canvas>
         
@@ -169,16 +170,12 @@
             <button class="cancel-btn" onclick="window.location.href='/'">Cancel</button>
         </div>
         
-        <button class="link-button" id="manualEntryLink" onclick="showManualEntry()" style="display:none;">
-            Can't scan? Enter barcode manually
-        </button>
-        
         <div class="manual-entry" id="manualEntry">
-            <p>Barcode not detected. Enter manually:</p>
+            <p>Enter barcode number:</p>
             <input type="text" id="manualBarcodeInput" placeholder="Enter barcode number" inputmode="numeric">
             <br>
-            <button onclick="submitManualBarcode()">Submit</button>
-            <button class="cancel-btn" onclick="hideManualEntry()">Cancel</button>
+            <button onclick="submitManualBarcode()">Continue</button>
+            <button class="cancel-btn" onclick="hideManualEntry()">Retake Photo</button>
         </div>
         
         <div id="successMessage">
