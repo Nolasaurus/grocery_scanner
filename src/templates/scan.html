@@ -23,13 +23,58 @@
             margin: 20px 0;
             color: #4CAF50;
         }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            max-width: 640px;
+            width: 100%;
+        }
         #video {
             width: 100%;
-            max-width: 640px;
+            border-radius: 10px;
+            display: block;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
             border-radius: 10px;
         }
         #canvas {
             display: none;
+        }
+        .manual-entry {
+            display: none;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #222;
+            border-radius: 10px;
+        }
+        .manual-entry input {
+            padding: 10px;
+            font-size: 18px;
+            width: 80%;
+            max-width: 300px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            background-color: #333;
+            color: white;
+        }
+        .manual-entry button {
+            margin-top: 10px;
+        }
+        .link-button {
+            background: none;
+            border: none;
+            color: #4CAF50;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            display: block;
         }
         .buttons {
             margin: 20px 0;
@@ -101,7 +146,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Workflow: Scan Product</h1>
+        <h1>Scan Product</h1>
         
         <div class="progress">
             <div class="progress-dot" id="dot1"></div>
@@ -111,7 +156,10 @@
         
         <div class="prompt" id="prompt">Scan Barcode</div>
         
-        <video id="video" autoplay playsinline></video>
+        <div class="video-container">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="overlay"></canvas>
+        </div>
         <canvas id="canvas"></canvas>
         
         <div class="thumbnails" id="thumbnails"></div>
@@ -119,6 +167,18 @@
         <div class="buttons">
             <button id="captureButton" disabled>Capture</button>
             <button class="cancel-btn" onclick="window.location.href='/'">Cancel</button>
+        </div>
+        
+        <button class="link-button" id="manualEntryLink" onclick="showManualEntry()" style="display:none;">
+            Can't scan? Enter barcode manually
+        </button>
+        
+        <div class="manual-entry" id="manualEntry">
+            <p>Barcode not detected. Enter manually:</p>
+            <input type="text" id="manualBarcodeInput" placeholder="Enter barcode number" inputmode="numeric">
+            <br>
+            <button onclick="submitManualBarcode()">Submit</button>
+            <button class="cancel-btn" onclick="hideManualEntry()">Cancel</button>
         </div>
         
         <div id="successMessage">
@@ -130,12 +190,17 @@
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
+        const overlay = document.getElementById('overlay');
         const captureButton = document.getElementById('captureButton');
         const prompt = document.getElementById('prompt');
         const thumbnails = document.getElementById('thumbnails');
         const successMessage = document.getElementById('successMessage');
+        const manualEntry = document.getElementById('manualEntry');
+        const manualEntryLink = document.getElementById('manualEntryLink');
+        const manualBarcodeInput = document.getElementById('manualBarcodeInput');
         
         let currentStep = 1;
+        let manualBarcodeData = null;
         const capturedImages = {
             barcode: null,
             nutrition: null,
@@ -154,6 +219,43 @@
             3: 'label'
         };
 
+        // Draw overlay guide rectangle on barcode step
+        function drawOverlay() {
+            if (currentStep !== 1) {
+                // Clear overlay for non-barcode steps
+                const ctx = overlay.getContext('2d');
+                ctx.clearRect(0, 0, overlay.width, overlay.height);
+                return;
+            }
+            
+            const ctx = overlay.getContext('2d');
+            overlay.width = video.videoWidth;
+            overlay.height = video.videoHeight;
+            
+            // Darken entire canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(0, 0, overlay.width, overlay.height);
+            
+            // Clear center rectangle for barcode
+            const rectWidth = overlay.width * 0.7;
+            const rectHeight = overlay.height * 0.5;
+            const rectX = (overlay.width - rectWidth) / 2;
+            const rectY = (overlay.height - rectHeight) / 2;
+            
+            ctx.clearRect(rectX, rectY, rectWidth, rectHeight);
+            
+            // Draw green border around clear area
+            ctx.strokeStyle = '#4CAF50';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+            
+            // Add instruction text
+            ctx.fillStyle = '#4CAF50';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Place barcode here', overlay.width / 2, rectY - 15);
+        }
+
         // Start camera immediately
         (async function startCamera() {
             try {
@@ -166,6 +268,12 @@
                 });
                 
                 video.srcObject = stream;
+                
+                // Wait for video to load metadata before drawing overlay
+                video.addEventListener('loadedmetadata', () => {
+                    drawOverlay();
+                });
+                
                 captureButton.disabled = false;
                 updateProgress();
             } catch (err) {
@@ -189,6 +297,16 @@
             
             // Update prompt
             prompt.textContent = prompts[currentStep];
+            
+            // Show manual entry link only on barcode step
+            if (currentStep === 1) {
+                manualEntryLink.style.display = 'block';
+            } else {
+                manualEntryLink.style.display = 'none';
+            }
+            
+            // Redraw overlay
+            drawOverlay();
         }
 
         function addThumbnail(base64Image) {
@@ -196,6 +314,35 @@
             img.src = base64Image;
             img.className = 'thumbnail';
             thumbnails.appendChild(img);
+        }
+
+        function showManualEntry() {
+            manualEntry.style.display = 'block';
+            captureButton.disabled = true;
+            manualBarcodeInput.focus();
+        }
+
+        function hideManualEntry() {
+            manualEntry.style.display = 'none';
+            manualBarcodeInput.value = '';
+            captureButton.disabled = false;
+        }
+
+        function submitManualBarcode() {
+            const barcodeValue = manualBarcodeInput.value.trim();
+            if (!barcodeValue) {
+                alert('Please enter a barcode number');
+                return;
+            }
+            
+            manualBarcodeData = barcodeValue;
+            hideManualEntry();
+            
+            // Show message that manual barcode was entered
+            prompt.textContent = `Barcode: ${barcodeValue} - Now capture the image`;
+            prompt.style.color = '#FFA500';
+            
+            // Continue with normal capture flow
         }
 
         captureButton.addEventListener('click', async () => {
@@ -234,12 +381,18 @@
                 prompt.textContent = 'Submitting...';
                 prompt.className = 'submitting';
                 
+                // If manual barcode was entered, send it along
+                const payload = {
+                    ...capturedImages,
+                    manual_barcode: manualBarcodeData
+                };
+                
                 const response = await fetch('/submit_product', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(capturedImages)
+                    body: JSON.stringify(payload)
                 });
                 
                 const result = await response.json();

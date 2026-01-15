@@ -187,6 +187,16 @@ def submit_product():
         nutrition_saved = save_image(data['nutrition'], product_id, 'nutrition')
         label_saved = save_image(data['label'], product_id, 'label')
         
+        # Check if manual barcode was provided
+        manual_barcode = data.get('manual_barcode')
+        if manual_barcode:
+            logger.info(f"Manual barcode provided: {manual_barcode}")
+            barcode_info = {
+                'data': manual_barcode,
+                'type': 'MANUAL',
+                'rect': None
+            }
+        
         if nutrition_saved is not None and label_saved is not None:
             # Save metadata
             metadata = {
