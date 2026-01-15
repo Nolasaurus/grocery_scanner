@@ -35,7 +35,7 @@ if os.path.exists(RAILWAY_VOLUME_PATH):
     PRODUCTS_DIR = os.path.join(RAILWAY_VOLUME_PATH, 'products')
     logger.info(f"Using Railway persistent volume: {PRODUCTS_DIR}")
 else:
-    PRODUCTS_DIR = os.path.join(BASE_DIR, 'static', 'products')
+    PRODUCTS_DIR = os.path.join(BASE_DIR, 'data', 'products')
     logger.info(f"Railway volume not found, using local storage: {PRODUCTS_DIR}")
 
 # Create products directory if it doesn't exist
