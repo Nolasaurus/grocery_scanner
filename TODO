@@ -1,0 +1,6 @@
+# TODO
+
+- add ingredient list step
+- add ocr to ing list and nutrition facts
+- improve barcode contrast
+- add barcode bbox to help pyzbar
