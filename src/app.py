@@ -1,8 +1,8 @@
 from flask import Flask
 import os
 
-from routes import bp
-from config import logger
+from .routes import bp
+from .config import logger
 
 app = Flask(__name__)
 app.register_blueprint(bp)

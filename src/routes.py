@@ -3,8 +3,8 @@ import json
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, send_file
 
-from config import logger, PRODUCTS_DIR
-from services import save_image
+from .config import logger, PRODUCTS_DIR
+from .services import save_image
 bp = Blueprint("main", __name__)
 
 

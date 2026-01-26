@@ -1,11 +1,10 @@
 import os
-import sys
 from io import BytesIO
 import base64
 from pyzbar.pyzbar import decode as decode_barcode
-from config import logger, PRODUCTS_DIR
 from PIL import Image, ImageOps
 
+from .config import logger, PRODUCTS_DIR
 
 def read_barcode(image):
     """Read barcode from image"""
